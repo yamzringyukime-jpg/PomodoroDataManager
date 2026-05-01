@@ -1,0 +1,23 @@
+## [Build Outputs]
+bin/
+obj/
+
+## [Visual Studio]
+.vs/
+*.user
+*.suo
+*.sln.docstates
+
+## [Database / Data]
+# 実際の履歴データは除外（設計図としてのスキーマが必要な場合は別途管理）
+*.accdb
+*.ldb
+
+## [AI Agent / IDE]
+.antigravity/
+.cursor/
+.windsurf/
+
+## [OS generated files]
+Thumbs.db
+Desktop.ini
