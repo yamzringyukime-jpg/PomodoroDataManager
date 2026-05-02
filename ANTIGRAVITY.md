@@ -37,7 +37,7 @@
 - **DB**: Microsoft Access (.accdb) — `System.Data.OleDb` 経由でアクセス
 - **DB設計**: Repositoryパターン（将来のSQLite移行に備え、IHistoryRepositoryインターフェースを経由）
 - **ファイル監視**: `System.IO.FileSystemWatcher`
-- **グラフ**: LiveCharts2 (ステップ2で導入予定)
+- **グラフ**: LiveCharts2 (`LiveChartsCore.SkiaSharpView.WPF` v2.0.2)
 - **実行ファイルの場所**: `C:\App\PomodoroDataManager\bin\Debug\net9.0-windows\PomodoroDataManager.exe`
 
 ## 7. 現在のステップ
@@ -60,31 +60,36 @@
 
 ## 10. AI Context Sync (現在の状況)
 ### Last Status
-ステップ1の全機能（同期、表示、編集、削除、新規追加）が完了。ビルドエラーも解消し、データ管理基盤として安定した状態。
+ステップ2の基本実装が完了。右サイドパネルにダッシュボード（Focus Meter、サブ計器、週間棒グラフ、休憩時間表示）を配置し、ビルド成功。ユーザーの動作確認待ち。
 
 ### Current Focus
-ステップ2「計器風ダッシュボード (Sophisticated Instrument UI)」の実装。まずは画面下部やサイドパネルへの「集中メーター（Focus Meter）」やグラフ表示エリアの確保から開始する。
+ステップ2のダッシュボード動作確認。実データで表示が正しいか、UIの見た目がダークテーマに馴染んでいるかを検証中。
 
 ### Pending Issues / Risks
-- **グラフライブラリの選定**: LiveCharts2のWPF版を導入し、ダークテーマに合わせたスタイリングが必要。
-- **パフォーマンス**: データ件数が増えた際の集計ロジックの効率化。
+- **NU1701 警告**: OpenTK / SkiaSharp.Views.WPF のターゲットフレームワーク互換性警告あり（動作には影響なし）。
+- **パフォーマンス**: データ件数が増えた際の集計ロジックの効率化（現在はC#メモリ上で集計）。
+- **ウィンドウサイズ記憶**: 現在はウィンドウサイズが保存されない（将来対応候補）。
+
+### ステップ2で追加されたファイル
+- `Models/DailySummary.cs` — 日別集計データモデル
+- `Services/DashboardService.cs` — ダッシュボード用集計ロジック
 
 ---
 
 ## 11. Next Step (次にやるべきこと)
 ### Start Action
-ステップ2のUIレイアウト設計を開始する。
-1. `MainWindow.xaml` にグラフ表示用のスペース（RowDefinition等）を確保。
-2. NuGetで `LiveChartsCore.SkiaSharpView.WPF` を導入。
-3. 今日の全作業時間を計算する集計ロジックをリポジトリまたはサービスに追加。
+ステップ2の動作確認後、以下を検討：
+1. ユーザーの味見結果に基づくUI微調整。
+2. 期間切り替え（7D/30D）ボタンの動作確認。
+3. 必要に応じてゲージ表示（円形メーター）への拡張。
 
 ### Target Files
-- `MainWindow.xaml`
-- `MainWindow.xaml.cs`
-- `IHistoryRepository.cs` (集計用メソッドの追加検討)
+- `MainWindow.xaml` (レイアウト微調整)
+- `MainWindow.xaml.cs` (ロジック微調整)
+- `Services/DashboardService.cs` (集計ロジック拡張)
 
 ### Desired State
-- 画面上に「今日の合計集中時間」がデジタル時計風、またはゲージ風に表示され、簡単な棒グラフのモックが表示されている状態。
+- ダッシュボードが実データで正常動作し、ユーザーが承認した状態。ステップ2完了。
 
 ---
 

@@ -3,8 +3,9 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:lvc="clr-namespace:LiveChartsCore.SkiaSharpView.WPF;assembly=LiveChartsCore.SkiaSharpView.WPF"
         mc:Ignorable="d"
-        Title="Pomodoro Data Manager" Height="700" Width="1000"
+        Title="Pomodoro Data Manager" Height="650" Width="1100"
         Background="#1A1A2E">
     <Window.Resources>
         <!-- DataGrid内の選択色などは個別に維持 -->
@@ -13,134 +14,260 @@
         <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightBrushKey}" Color="#22E94560"/>
     </Window.Resources>
 
+    <!-- ===== 全体を左右2カラムに分割 ===== -->
     <Grid Margin="15">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/> <!-- タイトル -->
-            <RowDefinition Height="Auto"/> <!-- フォルダ設定 -->
-            <RowDefinition Height="Auto"/> <!-- 検索・フィルタ -->
-            <RowDefinition Height="*"/>    <!-- データ一覧 -->
-            <RowDefinition Height="Auto"/> <!-- フッターステータス -->
-        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>          <!-- 左カラム: データ管理エリア -->
+            <ColumnDefinition Width="280"/>         <!-- 右カラム: ダッシュボードパネル -->
+        </Grid.ColumnDefinitions>
 
-        <!-- 1. タイトルエリア -->
-        <StackPanel Grid.Row="0" Margin="0,0,0,15">
-            <TextBlock Text="Pomodoro Data Manager" FontSize="22" FontWeight="Bold" Margin="0,0,0,5"/>
-            <Rectangle Height="2" Fill="#E94560" HorizontalAlignment="Left" Width="100"/>
-        </StackPanel>
+        <!-- ========================================= -->
+        <!-- 左カラム: 既存のデータ管理エリア            -->
+        <!-- ========================================= -->
+        <Grid Grid.Column="0" Margin="0,0,15,0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/> <!-- タイトル -->
+                <RowDefinition Height="Auto"/> <!-- フォルダ設定 -->
+                <RowDefinition Height="Auto"/> <!-- 検索・フィルタ -->
+                <RowDefinition Height="*"/>    <!-- データ一覧 -->
+                <RowDefinition Height="Auto"/> <!-- フッターステータス -->
+            </Grid.RowDefinitions>
 
-        <!-- 2. フォルダ設定パネル -->
-        <Border Grid.Row="1" Background="#16213E" CornerRadius="4" Padding="15" Margin="0,0,0,15" BorderBrush="#0F3460" BorderThickness="1">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-
-                <TextBlock Grid.Column="0" Text="監視フォルダ" VerticalAlignment="Center" Foreground="#A0AEC0" Margin="0,0,10,0" FontSize="12"/>
-                <TextBox Grid.Column="1" x:Name="FolderPathTextBox" IsReadOnly="True" Height="30"/>
-                <Button Grid.Column="2" Content="📁 フォルダを選択" Margin="10,0,0,0" x:Name="SelectFolderButton" Click="SelectFolderButton_Click" Style="{StaticResource InstrumentButton}"/>
-                <Button Grid.Column="3" Content="🔄 更新を反映" Margin="10,0,0,0" x:Name="ManualSyncButton" IsEnabled="False" Click="ManualSyncButton_Click" Style="{StaticResource AccentButton}"/>
-            </Grid>
-        </Border>
-
-        <!-- 3. 検索・フィルタエリア -->
-        <Border Grid.Row="2" Background="#16213E" CornerRadius="4" Padding="15" Margin="0,0,0,15" BorderBrush="#0F3460" BorderThickness="1">
-            <StackPanel Orientation="Vertical">
-                <TextBlock Text="DATA EXPLORER / FILTER" FontWeight="Bold" Foreground="#7A8BA8" Margin="0,0,0,10" FontSize="11" Opacity="0.8"/>
-                <WrapPanel>
-                    <!-- 日付範囲 -->
-                    <StackPanel Margin="0,0,20,10">
-                        <TextBlock Text="DATE RANGE" FontSize="10" Foreground="#6B7280" Margin="0,0,0,4"/>
-                        <StackPanel Orientation="Horizontal">
-                            <DatePicker x:Name="StartDatePicker" Width="110" SelectedDateChanged="SearchCondition_Changed" Focusable="False" BorderThickness="0"/>
-                            <TextBlock Text=" 〜 " VerticalAlignment="Center" Foreground="#A0AEC0"/>
-                            <DatePicker x:Name="EndDatePicker" Width="110" SelectedDateChanged="SearchCondition_Changed" Focusable="False" BorderThickness="0"/>
-                        </StackPanel>
-                    </StackPanel>
-
-                    <!-- キーワード検索 -->
-                    <StackPanel Margin="0,0,20,10">
-                        <TextBlock Text="TASK SEARCH" FontSize="10" Foreground="#6B7280" Margin="0,0,0,4"/>
-                        <TextBox x:Name="KeywordSearchTextBox" Width="150" Height="25" TextChanged="SearchCondition_Changed"/>
-                    </StackPanel>
-
-                    <!-- モードフィルタ -->
-                    <StackPanel Margin="0,0,20,10">
-                        <TextBlock Text="MODE" FontSize="10" Foreground="#6B7280" Margin="0,0,0,4"/>
-                        <ComboBox x:Name="ModeFilterComboBox" Width="90" Height="25" SelectionChanged="SearchCondition_Changed">
-                            <ComboBoxItem Content="全て" IsSelected="True"/>
-                            <ComboBoxItem Content="作業"/>
-                            <ComboBoxItem Content="休憩"/>
-                        </ComboBox>
-                    </StackPanel>
-
-                    <!-- リセット -->
-                    <Button Content="RESET" Width="70" Height="25" Margin="0,15,0,0" Click="ResetSearchButton_Click" Style="{StaticResource InstrumentButton}" FontSize="11"/>
-
-                    <!-- 新規追加 -->
-                    <Button Content="➕ ADD NEW" Width="100" Height="25" Margin="20,15,0,0" Click="AddNewRecordButton_Click" Style="{StaticResource AccentButton}" FontSize="11" FontWeight="Bold"/>
-                </WrapPanel>
+            <!-- 1. タイトルエリア -->
+            <StackPanel Grid.Row="0" Margin="0,0,0,15">
+                <TextBlock Text="Pomodoro Data Manager" FontSize="22" FontWeight="Bold" Margin="0,0,0,5"/>
+                <Rectangle Height="2" Fill="#E94560" HorizontalAlignment="Left" Width="100"/>
             </StackPanel>
-        </Border>
 
-        <!-- 4. データ表示エリア -->
-        <Border Grid.Row="3" Background="#16213E" CornerRadius="4" Padding="1" BorderBrush="#0F3460" BorderThickness="1">
-            <DataGrid x:Name="HistoryDataGrid" 
-                      AutoGenerateColumns="False" 
-                      IsReadOnly="True"
-                      BorderThickness="0"
-                      FontSize="13">
-                <DataGrid.Resources>
-                    <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#44E94560"/>
-                    <SolidColorBrush x:Key="{x:Static SystemColors.HighlightTextBrushKey}" Color="White"/>
-                    <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightBrushKey}" Color="#22E94560"/>
-                </DataGrid.Resources>
+            <!-- 2. フォルダ設定パネル -->
+            <Border Grid.Row="1" Background="#16213E" CornerRadius="4" Padding="15" Margin="0,0,0,15" BorderBrush="#0F3460" BorderThickness="1">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Grid.Column="0" Text="監視フォルダ" VerticalAlignment="Center" Foreground="#A0AEC0" Margin="0,0,10,0" FontSize="12"/>
+                    <TextBox Grid.Column="1" x:Name="FolderPathTextBox" IsReadOnly="True" Height="30"/>
+                    <Button Grid.Column="2" Content="📁 フォルダを選択" Margin="10,0,0,0" x:Name="SelectFolderButton" Click="SelectFolderButton_Click" Style="{StaticResource InstrumentButton}"/>
+                    <Button Grid.Column="3" Content="🔄 更新を反映" Margin="10,0,0,0" x:Name="ManualSyncButton" IsEnabled="False" Click="ManualSyncButton_Click" Style="{StaticResource AccentButton}"/>
+                </Grid>
+            </Border>
+
+            <!-- 3. 検索・フィルタエリア -->
+            <Border Grid.Row="2" Background="#16213E" CornerRadius="4" Padding="15" Margin="0,0,0,15" BorderBrush="#0F3460" BorderThickness="1">
+                <StackPanel Orientation="Vertical">
+                    <TextBlock Text="DATA EXPLORER / FILTER" FontWeight="Bold" Foreground="#7A8BA8" Margin="0,0,0,10" FontSize="11" Opacity="0.8"/>
+                    <WrapPanel>
+                        <!-- 日付範囲 -->
+                        <StackPanel Margin="0,0,20,10">
+                            <TextBlock Text="DATE RANGE" FontSize="10" Foreground="#6B7280" Margin="0,0,0,4"/>
+                            <StackPanel Orientation="Horizontal">
+                                <DatePicker x:Name="StartDatePicker" Width="110" SelectedDateChanged="SearchCondition_Changed" Focusable="False" BorderThickness="0"/>
+                                <TextBlock Text=" 〜 " VerticalAlignment="Center" Foreground="#A0AEC0"/>
+                                <DatePicker x:Name="EndDatePicker" Width="110" SelectedDateChanged="SearchCondition_Changed" Focusable="False" BorderThickness="0"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- キーワード検索 -->
+                        <StackPanel Margin="0,0,20,10">
+                            <TextBlock Text="TASK SEARCH" FontSize="10" Foreground="#6B7280" Margin="0,0,0,4"/>
+                            <TextBox x:Name="KeywordSearchTextBox" Width="150" Height="25" TextChanged="SearchCondition_Changed"/>
+                        </StackPanel>
+
+                        <!-- モードフィルタ -->
+                        <StackPanel Margin="0,0,20,10">
+                            <TextBlock Text="MODE" FontSize="10" Foreground="#6B7280" Margin="0,0,0,4"/>
+                            <ComboBox x:Name="ModeFilterComboBox" Width="90" Height="25" SelectionChanged="SearchCondition_Changed">
+                                <ComboBoxItem Content="全て" IsSelected="True"/>
+                                <ComboBoxItem Content="作業"/>
+                                <ComboBoxItem Content="休憩"/>
+                            </ComboBox>
+                        </StackPanel>
+
+                        <!-- リセット -->
+                        <Button Content="RESET" Width="70" Height="25" Margin="0,15,0,0" Click="ResetSearchButton_Click" Style="{StaticResource InstrumentButton}" FontSize="11"/>
+
+                        <!-- 新規追加 -->
+                        <Button Content="➕ ADD NEW" Width="100" Height="25" Margin="20,15,0,0" Click="AddNewRecordButton_Click" Style="{StaticResource AccentButton}" FontSize="11" FontWeight="Bold"/>
+                    </WrapPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- 4. データ表示エリア -->
+            <Border Grid.Row="3" Background="#16213E" CornerRadius="4" Padding="1" BorderBrush="#0F3460" BorderThickness="1">
+                <DataGrid x:Name="HistoryDataGrid" 
+                          AutoGenerateColumns="False" 
+                          IsReadOnly="True"
+                          BorderThickness="0"
+                          FontSize="13">
+                    <DataGrid.Resources>
+                        <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#44E94560"/>
+                        <SolidColorBrush x:Key="{x:Static SystemColors.HighlightTextBrushKey}" Color="White"/>
+                        <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightBrushKey}" Color="#22E94560"/>
+                    </DataGrid.Resources>
                 
 
-                <DataGrid.Columns>
-                    <DataGridTextColumn Header="START" Binding="{Binding StartTime, StringFormat='MM/dd HH:mm'}" Width="100"/>
-                    <DataGridTextColumn Header="MODE" Binding="{Binding Mode}" Width="65">
-                        <DataGridTextColumn.ElementStyle>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="HorizontalAlignment" Value="Center"/>
-                                <Setter Property="FontWeight" Value="Bold"/>
-                            </Style>
-                        </DataGridTextColumn.ElementStyle>
-                    </DataGridTextColumn>
-                    <DataGridTextColumn Header="TASK" Binding="{Binding TaskName}" Width="*"/>
-                    <DataGridTextColumn Header="DURATION" Binding="{Binding Duration}" Width="100">
-                        <DataGridTextColumn.ElementStyle>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="HorizontalAlignment" Value="Right"/>
-                                <Setter Property="FontFamily" Value="Consolas"/>
-                                <Setter Property="Foreground" Value="#E94560"/>
-                                <Setter Property="Margin" Value="0,0,10,0"/>
-                            </Style>
-                        </DataGridTextColumn.ElementStyle>
-                    </DataGridTextColumn>
-                </DataGrid.Columns>
-            </DataGrid>
-        </Border>
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="START" Binding="{Binding StartTime, StringFormat='MM/dd HH:mm'}" Width="100"/>
+                        <DataGridTextColumn Header="MODE" Binding="{Binding Mode}" Width="65">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="HorizontalAlignment" Value="Center"/>
+                                    <Setter Property="FontWeight" Value="Bold"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="TASK" Binding="{Binding TaskName}" Width="*"/>
+                        <DataGridTextColumn Header="DURATION" Binding="{Binding Duration}" Width="100">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="HorizontalAlignment" Value="Right"/>
+                                    <Setter Property="FontFamily" Value="Consolas"/>
+                                    <Setter Property="Foreground" Value="#E94560"/>
+                                    <Setter Property="Margin" Value="0,0,10,0"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Border>
 
-        <!-- 5. ステータスバー -->
-        <Border Grid.Row="4" Background="#1A1A2E" Margin="0,10,0,0" Padding="5">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
+            <!-- 5. ステータスバー -->
+            <Border Grid.Row="4" Background="#1A1A2E" Margin="0,10,0,0" Padding="5">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
 
-                <StackPanel Grid.Column="0" Orientation="Horizontal">
-                    <Ellipse x:Name="StatusIndicator" Width="8" Height="8" Fill="#AAA" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                    <TextBlock x:Name="WatchStatusText" Text="STOPPED" Foreground="#7A8BA8" FontSize="11" VerticalAlignment="Center"/>
+                    <StackPanel Grid.Column="0" Orientation="Horizontal">
+                        <Ellipse x:Name="StatusIndicator" Width="8" Height="8" Fill="#AAA" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <TextBlock x:Name="WatchStatusText" Text="STOPPED" Foreground="#7A8BA8" FontSize="11" VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <TextBlock Grid.Column="1" x:Name="StatusMessageText" Text="SELECT FOLDER TO START" Foreground="#A0AEC0" FontSize="11" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="2" x:Name="TotalCountText" Text="TOTAL: 0" Foreground="#A0AEC0" FontSize="11" VerticalAlignment="Center"/>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- ========================================= -->
+        <!-- 右カラム: ダッシュボードパネル              -->
+        <!-- ========================================= -->
+        <Border Grid.Column="1" Background="#16213E" CornerRadius="6" Padding="15" BorderBrush="#0F3460" BorderThickness="1">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel>
+
+                    <!-- ダッシュボードヘッダー -->
+                    <TextBlock Text="DASHBOARD" FontSize="11" FontWeight="Bold" Foreground="#7A8BA8" Opacity="0.8" Margin="0,0,0,5"/>
+                    <Rectangle Height="1" Fill="#0F3460" Margin="0,0,0,15"/>
+
+                    <!-- ===== Focus Meter: 本日の合計作業時間 ===== -->
+                    <Border Background="#1A1A2E" CornerRadius="4" Padding="15" Margin="0,0,0,15" BorderBrush="#0F3460" BorderThickness="1">
+                        <StackPanel>
+                            <TextBlock Text="TODAY'S FOCUS" FontSize="10" Foreground="#6B7280" Margin="0,0,0,8"/>
+
+                            <!-- メイン: デジタル時計風の大きな表示 -->
+                            <TextBlock x:Name="FocusMeterText"
+                                       Text="0h 00m"
+                                       FontSize="36"
+                                       FontWeight="Bold"
+                                       FontFamily="Consolas"
+                                       Foreground="#E94560"
+                                       HorizontalAlignment="Center"
+                                       Margin="0,5,0,10"/>
+
+                            <!-- サブ計器: テキストベースの統計情報 -->
+                            <Grid Margin="0,5,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <!-- セッション数 -->
+                                <StackPanel Grid.Column="0" HorizontalAlignment="Center">
+                                    <TextBlock Text="SESSIONS" FontSize="9" Foreground="#6B7280" HorizontalAlignment="Center"/>
+                                    <TextBlock x:Name="SessionCountText"
+                                               Text="0"
+                                               FontSize="20"
+                                               FontWeight="Bold"
+                                               FontFamily="Consolas"
+                                               Foreground="#A0AEC0"
+                                               HorizontalAlignment="Center"/>
+                                </StackPanel>
+
+                                <!-- 最長セッション -->
+                                <StackPanel Grid.Column="1" HorizontalAlignment="Center">
+                                    <TextBlock Text="MAX STREAK" FontSize="9" Foreground="#6B7280" HorizontalAlignment="Center"/>
+                                    <TextBlock x:Name="MaxStreakText"
+                                               Text="0 min"
+                                               FontSize="20"
+                                               FontWeight="Bold"
+                                               FontFamily="Consolas"
+                                               Foreground="#A0AEC0"
+                                               HorizontalAlignment="Center"/>
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- ===== 週間アクティビティ棒グラフ ===== -->
+                    <Border Background="#1A1A2E" CornerRadius="4" Padding="15" Margin="0,0,0,15" BorderBrush="#0F3460" BorderThickness="1">
+                        <StackPanel>
+                            <!-- グラフヘッダーと期間切り替え -->
+                            <Grid Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="WEEKLY ACTIVITY" FontSize="10" Foreground="#6B7280" VerticalAlignment="Center"/>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                    <Button x:Name="Period7DaysButton"
+                                            Content="7D"
+                                            Width="35" Height="22"
+                                            FontSize="10"
+                                            Margin="0,0,5,0"
+                                            Click="PeriodButton_Click"
+                                            Tag="7"
+                                            Style="{StaticResource AccentButton}"/>
+                                    <Button x:Name="Period30DaysButton"
+                                            Content="30D"
+                                            Width="35" Height="22"
+                                            FontSize="10"
+                                            Click="PeriodButton_Click"
+                                            Tag="30"
+                                            Style="{StaticResource InstrumentButton}"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <!-- LiveCharts2 棒グラフ -->
+                            <lvc:CartesianChart x:Name="WeeklyChart"
+                                                Height="180"
+                                                Background="Transparent"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- ===== 休憩時間の表示 ===== -->
+                    <Border Background="#1A1A2E" CornerRadius="4" Padding="15" BorderBrush="#0F3460" BorderThickness="1">
+                        <StackPanel>
+                            <TextBlock Text="TODAY'S BREAK" FontSize="10" Foreground="#6B7280" Margin="0,0,0,8"/>
+                            <TextBlock x:Name="BreakTimeText"
+                                       Text="0h 00m"
+                                       FontSize="22"
+                                       FontWeight="Bold"
+                                       FontFamily="Consolas"
+                                       Foreground="#48C78E"
+                                       HorizontalAlignment="Center"
+                                       Margin="0,0,0,5"/>
+                        </StackPanel>
+                    </Border>
+
                 </StackPanel>
-
-                <TextBlock Grid.Column="1" x:Name="StatusMessageText" Text="SELECT FOLDER TO START" Foreground="#A0AEC0" FontSize="11" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                <TextBlock Grid.Column="2" x:Name="TotalCountText" Text="TOTAL: 0" Foreground="#A0AEC0" FontSize="11" VerticalAlignment="Center"/>
-            </Grid>
+            </ScrollViewer>
         </Border>
     </Grid>
 </Window>
