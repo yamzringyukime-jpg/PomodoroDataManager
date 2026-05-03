@@ -22,6 +22,9 @@ namespace PomodoroDataManager.Models
 
         /// <summary>その日の最長連続作業時間（分単位）</summary>
         public double MaxStreakMinutes { get; set; }
+        
+        /// <summary>タスク名ごとの合計時間（分単位）</summary>
+        public System.Collections.Generic.Dictionary<string, double> TaskMinutes { get; set; } = new();
 
         /// <summary>
         /// 合計作業時間を「X時間Y分」形式の文字列で返すヘルパー。

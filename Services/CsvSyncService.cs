@@ -27,6 +27,9 @@ namespace PomodoroDataManager.Services
         // イベント：エラーが発生した時に呼び出される
         public event Action<string>? OnError;
 
+        // イベント：時間帯重複のためインポートがスキップされた時に呼び出される
+        public event Action<List<PomodoroRecord>>? OnImportSkipped;
+
         /// <summary>
         /// コンストラクタ。
         /// </summary>
@@ -95,22 +98,36 @@ namespace PomodoroDataManager.Services
                 System.Threading.Thread.Sleep(500);
 
                 var newRecords = ParseCsvFile(csvFilePath);
-                var existingKeys = _repository.GetAllUniqueKeys();
+                var existingRecords = _repository.Search(new SearchCriteria()); // 全件取得
+                var existingKeys = new HashSet<string>(existingRecords.ConvertAll(r => r.UniqueKey));
 
                 int importedCount = 0;
+                var skippedRecords = new List<PomodoroRecord>();
+
                 foreach (var record in newRecords)
                 {
                     // すでにDBにあるデータはスキップ（重複しない新規データのみ追加）
                     if (!existingKeys.Contains(record.UniqueKey))
                     {
-                        record.SourceFilePath = csvFilePath; // インポート元のパスを保持
-                        _repository.Insert(record);
-                        importedCount++;
+                        // 新規追加データが既存データと時間被りしているかチェック
+                        if (IsTimeOverlapping(record, existingRecords))
+                        {
+                            skippedRecords.Add(record);
+                        }
+                        else
+                        {
+                            record.SourceFilePath = csvFilePath; // インポート元のパスを保持
+                            _repository.Insert(record);
+                            importedCount++;
+                        }
                     }
                 }
 
                 if (importedCount > 0)
                     OnImported?.Invoke(importedCount);
+
+                if (skippedRecords.Count > 0)
+                    OnImportSkipped?.Invoke(skippedRecords);
             }
             catch (Exception ex)
             {
@@ -125,48 +142,64 @@ namespace PomodoroDataManager.Services
         /// CSVファイルが存在しない場合は何もしません（削除保護）。
         /// </summary>
         /// <param name="csvFilePath">更新元のCSVファイルのフルパス</param>
-        /// <returns>新規追加件数と更新件数のセット</returns>
-        public (int inserted, int updated) ManualSyncFile(string csvFilePath)
+        /// <returns>新規追加件数と更新件数のセット、およびスキップされたレコードのリスト</returns>
+        public (int inserted, int updated, List<PomodoroRecord> skipped) ManualSyncFile(string csvFilePath)
         {
             // ★削除保護: ファイルが存在しない場合はDB側を一切変更しない
             if (!File.Exists(csvFilePath))
             {
                 OnError?.Invoke($"指定されたCSVファイルが見つかりません。\n{csvFilePath}");
-                return (0, 0);
+                return (0, 0, new List<PomodoroRecord>());
             }
 
             try
             {
                 var records = ParseCsvFile(csvFilePath);
-                var existingKeys = _repository.GetAllUniqueKeys();
+                var existingRecords = _repository.Search(new SearchCriteria()); // 全件取得
+                var existingKeys = new HashSet<string>(existingRecords.ConvertAll(r => r.UniqueKey));
 
                 int insertedCount = 0;
                 int updatedCount = 0;
+                var skippedRecords = new List<PomodoroRecord>();
 
                 foreach (var record in records)
                 {
                     if (!existingKeys.Contains(record.UniqueKey))
                     {
                         // DBに存在しない → 新規追加
-                        record.SourceFilePath = csvFilePath;
-                        _repository.Insert(record);
-                        insertedCount++;
+                        if (IsTimeOverlapping(record, existingRecords))
+                        {
+                            skippedRecords.Add(record);
+                        }
+                        else
+                        {
+                            record.SourceFilePath = csvFilePath;
+                            _repository.Insert(record);
+                            insertedCount++;
+                        }
                     }
                     else
                     {
                         // DBに存在する → 更新
-                        _repository.Update(record);
-                        updatedCount++;
+                        if (IsTimeOverlapping(record, existingRecords))
+                        {
+                            skippedRecords.Add(record);
+                        }
+                        else
+                        {
+                            _repository.Update(record);
+                            updatedCount++;
+                        }
                     }
                 }
 
-                return (insertedCount, updatedCount);
+                return (insertedCount, updatedCount, skippedRecords);
             }
             catch (Exception ex)
             {
                 OnError?.Invoke($"CSVの手動同期でエラーが発生しました:\n{ex.Message}");
                 LogService.WriteLog($"[手動同期エラー] {csvFilePath}: {ex}");
-                return (0, 0);
+                return (0, 0, new List<PomodoroRecord>());
             }
         }
 
@@ -298,6 +331,26 @@ namespace PomodoroDataManager.Services
             {
                 File.WriteAllLines(newRecord.SourceFilePath, newLines, Encoding.UTF8);
             }
+        }
+
+        /// <summary>
+        /// 新しいレコードが、既存のレコードと時間帯（StartTime ～ EndTime）で
+        /// 重複しているかどうかを判定します。
+        /// </summary>
+        public bool IsTimeOverlapping(PomodoroRecord newRecord, List<PomodoroRecord> existingRecords)
+        {
+            foreach (var existing in existingRecords)
+            {
+                // 同じデータ（更新対象自身）との比較はスキップ
+                if (existing.UniqueKey == newRecord.UniqueKey) continue;
+
+                // 時間被り判定: 一方の開始時刻が他方の終了時刻より前 ＆ 一方の終了時刻が他方の開始時刻より後
+                if (newRecord.StartTime < existing.EndTime && newRecord.EndTime > existing.StartTime)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
     }
 }

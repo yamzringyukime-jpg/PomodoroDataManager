@@ -241,6 +241,18 @@ namespace PomodoroDataManager
                 Duration = DurationTextBlock.Text,
                 SourceFilePath = _originalRecord.SourceFilePath
             };
+            // 重複チェック
+            var existingRecords = _repository.Search(new SearchCriteria());
+            if (_syncService.IsTimeOverlapping(newRecord, existingRecords))
+            {
+                try { new System.Media.SoundPlayer(@"C:\Windows\Media\Windows Notify System Generic.wav").Play(); } catch { }
+                System.Windows.MessageBox.Show(
+                    "指定された時間帯は、既存の記録と重複しています。\n時間帯を調整してください。",
+                    "時間重複エラー",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                return;
+            }
 
             try
             {

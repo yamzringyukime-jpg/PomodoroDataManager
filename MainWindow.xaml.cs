@@ -99,6 +99,18 @@ namespace PomodoroDataManager
                     });
                 };
 
+                _syncService.OnImportSkipped += skippedRecords =>
+                {
+                    Dispatcher.Invoke(() =>
+                    {
+                        try { new System.Media.SoundPlayer(@"C:\Windows\Media\Windows Notify System Generic.wav").Play(); } catch { }
+                        var msg = $"以下のデータは既存の記録と時間帯が重複しているため、取り込まれませんでした:\n\n" +
+                                  string.Join("\n", skippedRecords.Select(r => $"・{r.TaskName} ({r.StartTime:HH:mm} - {r.EndTime:HH:mm})"));
+                        
+                        System.Windows.MessageBox.Show(msg, "インポート スキップ通知", MessageBoxButton.OK, MessageBoxImage.Information);
+                    });
+                };
+
                 // 起動時にデータを読み込んで表示
                 RefreshDataGrid();
 
@@ -170,18 +182,29 @@ namespace PomodoroDataManager
 
             int totalInserted = 0;
             int totalUpdated = 0;
+            var totalSkipped = new List<PomodoroRecord>();
 
             // フォルダ内の全CSVファイルに対して手動同期を実行
             foreach (var csvFile in csvFiles)
             {
-                var (inserted, updated) = _syncService.ManualSyncFile(csvFile);
+                var (inserted, updated, skipped) = _syncService.ManualSyncFile(csvFile);
                 totalInserted += inserted;
                 totalUpdated += updated;
+                totalSkipped.AddRange(skipped);
             }
 
             RefreshDataGrid();
             RefreshDashboard(); // ダッシュボードも更新
             ShowStatus($"✅ 手動同期完了 — 新規: {totalInserted} 件 / 更新: {totalUpdated} 件");
+
+            // スキップされたデータがあれば通知
+            if (totalSkipped.Count > 0)
+            {
+                try { new System.Media.SoundPlayer(@"C:\Windows\Media\Windows Notify System Generic.wav").Play(); } catch { }
+                var msg = $"以下のデータは既存の記録と時間帯が重複しているため、取り込まれませんでした:\n\n" +
+                          string.Join("\n", totalSkipped.Select(r => $"・{r.TaskName} ({r.StartTime:HH:mm} - {r.EndTime:HH:mm})"));
+                System.Windows.MessageBox.Show(msg, "手動同期 スキップ通知", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
         }
 
         /// <summary>
@@ -258,24 +281,35 @@ namespace PomodoroDataManager
 
             // X軸のラベル（日付）を生成
             var labels = summaries.Select(s => s.Date.ToString("M/d")).ToArray();
+            
+            // 期間内に存在する全てのタスク名を抽出
+            var taskNames = summaries.SelectMany(s => s.TaskMinutes.Keys).Distinct().ToList();
+            var seriesList = new List<ISeries>();
 
-            // 棒グラフのデータ（各日の作業時間を分単位で）
-            var values = summaries.Select(s => s.TotalWorkMinutes).ToArray();
-
-            // LiveCharts2のSeriesを構成
-            WeeklyChart.Series = new ISeries[]
+            foreach (var taskName in taskNames)
             {
-                new ColumnSeries<double>
+                // 各日のそのタスクの作業時間を配列にする
+                var taskValues = summaries.Select(s => s.TaskMinutes.ContainsKey(taskName) ? s.TaskMinutes[taskName] : 0.0).ToArray();
+                
+                seriesList.Add(new StackedColumnSeries<double>
                 {
-                    Values = values,
-                    Name = "作業時間 (min)",
-                    // ダークテーマに合う赤系のアクセントカラー
-                    Fill = new SolidColorPaint(new SKColor(233, 69, 96, 200)),  // #E94560（やや透過）
+                    Values = taskValues,
+                    Name = taskName,
+                    // タスク名から一意の色を生成
+                    Fill = new SolidColorPaint(GetColorForTask(taskName)),
                     Stroke = null,
-                    MaxBarWidth = _currentPeriodDays <= 7 ? 25 : 12,  // 期間に応じてバー幅を調整
+                    MaxBarWidth = _currentPeriodDays <= 7 ? 25 : 12,
                     Padding = 2
-                }
-            };
+                });
+            }
+
+            // もしデータが一件もない場合でも空のシリーズをセットして表示を維持
+            if (seriesList.Count == 0)
+            {
+                seriesList.Add(new StackedColumnSeries<double> { Values = new double[summaries.Count], Name = "なし" });
+            }
+
+            WeeklyChart.Series = seriesList.ToArray();
 
             // X軸の設定（日付ラベル）
             WeeklyChart.XAxes = new Axis[]
@@ -298,7 +332,8 @@ namespace PomodoroDataManager
                     LabelsPaint = new SolidColorPaint(new SKColor(160, 174, 192)),  // #A0AEC0
                     TextSize = 10,
                     SeparatorsPaint = new SolidColorPaint(new SKColor(15, 52, 96, 50)),  // 薄いグリッド線
-                    MinLimit = 0
+                    MinLimit = 0,
+                    Labeler = value => value.ToString("F2")
                 }
             };
         }
@@ -392,6 +427,28 @@ namespace PomodoroDataManager
         private void ShowStatus(string message)
         {
             StatusMessageText.Text = message;
+        }
+
+        /// <summary>
+        /// タスク名に基づいて一意の色（SKColor）を生成します。
+        /// 同じタスク名には常に同じ色が割り当てられます。
+        /// </summary>
+        private SKColor GetColorForTask(string taskName)
+        {
+            if (string.IsNullOrEmpty(taskName)) return new SKColor(160, 174, 192);
+
+            // 文字列のハッシュ値を利用して色を決定
+            int hash = taskName.GetHashCode();
+            byte r = (byte)((hash & 0xFF0000) >> 16);
+            byte g = (byte)((hash & 0x00FF00) >> 8);
+            byte b = (byte)(hash & 0x0000FF);
+
+            // ダークテーマに映えるよう、少し明るさを調整（パステル調に寄せる）
+            return new SKColor(
+                (byte)((r % 150) + 80),
+                (byte)((g % 150) + 80),
+                (byte)((b % 150) + 80),
+                220);
         }
     }
 }

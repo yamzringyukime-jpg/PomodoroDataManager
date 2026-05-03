@@ -247,7 +247,8 @@
                             <!-- LiveCharts2 棒グラフ -->
                             <lvc:CartesianChart x:Name="WeeklyChart"
                                                 Height="180"
-                                                Background="Transparent"/>
+                                                Background="Transparent"
+                                                TooltipTextSize="11"/>
                         </StackPanel>
                     </Border>
 

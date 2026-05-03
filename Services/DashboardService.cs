@@ -67,7 +67,9 @@ namespace PomodoroDataManager.Services
                 TotalWorkMinutes = totalWorkMinutes,
                 TotalBreakMinutes = totalBreakMinutes,
                 WorkSessionCount = workRecords.Count,
-                MaxStreakMinutes = maxStreak
+                MaxStreakMinutes = maxStreak,
+                TaskMinutes = workRecords.GroupBy(r => r.TaskName)
+                                         .ToDictionary(g => g.Key, g => g.Sum(r => ParseDurationToMinutes(r.Duration)))
             };
         }
 
@@ -115,7 +117,9 @@ namespace PomodoroDataManager.Services
                         WorkSessionCount = workRecords.Count,
                         MaxStreakMinutes = workRecords.Count > 0
                             ? workRecords.Max(r => ParseDurationToMinutes(r.Duration))
-                            : 0
+                            : 0,
+                        TaskMinutes = workRecords.GroupBy(r => r.TaskName)
+                                                 .ToDictionary(g => g.Key, g => g.Sum(r => ParseDurationToMinutes(r.Duration)))
                     });
                 }
                 else
